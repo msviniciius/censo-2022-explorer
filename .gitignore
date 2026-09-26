@@ -1,0 +1,12 @@
+/backend/vendor/
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+/backend/.phpunit.cache/
+/backend/.phpunit.result.cache
+/backend/.pest/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/coverage/
+*.tsbuildinfo
+.DS_Store
