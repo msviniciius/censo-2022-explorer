@@ -1,0 +1,14 @@
+.git
+.agents
+.codex
+openspec
+censo.sqlite
+README.md
+backend/vendor
+backend/.env*
+backend/bootstrap/cache/*.php
+backend/storage/**/*.log
+backend/storage/app/runtime.key
+frontend/node_modules
+frontend/dist
+**/.DS_Store
