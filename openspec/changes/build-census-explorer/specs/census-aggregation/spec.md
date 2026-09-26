@@ -36,7 +36,7 @@ O sistema SHALL somar `setor.populacao` e `setor.area_km2` uma única vez por se
 
 ### Requirement: Agregados demográficos com cobertura explícita
 
-O sistema SHALL somar os valores conhecidos de `demografia.homens` e `demografia.mulheres`, separadamente, vinculados pelos códigos dos setores. `setor.populacao` MUST continuar sendo a fonte da população total. A ausência de linha demográfica ou um valor nulo MUST significar dado indisponível, nunca zero presumido. Cada métrica demográfica MUST informar valor, setores com valor conhecido, total de setores e estado `completo`, `parcial` ou `indisponivel`. Se nenhum valor for conhecido, o valor MUST ser `null`; um zero conhecido MUST continuar sendo zero. As telas MUST identificar explicitamente somas parciais.
+O sistema SHALL somar os valores conhecidos de `demografia.homens` e `demografia.mulheres`, separadamente, vinculados pelos códigos dos setores. `setor.populacao` MUST continuar sendo a fonte da população total. A ausência de linha demográfica ou um valor nulo MUST significar dado indisponível, nunca zero presumido. Cada métrica demográfica MUST informar valor, setores com valor conhecido, total de setores e estado `completo`, `parcial` ou `indisponivel`. Se nenhum valor for conhecido, o valor MUST ser `null`; um zero conhecido MUST continuar sendo zero. As telas MUST identificar explicitamente somas parciais. A distribuição percentual por sexo SHALL usar `SUM(homens) + SUM(mulheres)` do território como denominador e cada soma separada como numerador, multiplicando por 100. MUST NOT usar a população setorial, `SUM(moradores)` ou `SUM(homens + mulheres)` como denominador. Denominador nulo ou zero MUST produzir percentuais `null`. A apresentação MUST identificar a distribuição como referente aos valores demográficos conhecidos, preservando os avisos de cobertura.
 
 #### Scenario: Demografia parcial não reduz a população
 - **WHEN** dois setores somam 300 habitantes e somente um informa 40 homens e 60 mulheres
@@ -46,17 +46,39 @@ O sistema SHALL somar os valores conhecidos de `demografia.homens` e `demografia
 - **WHEN** um setor possui homens igual a zero e mulheres nulo, sem outros setores
 - **THEN** homens retorna zero completo e mulheres retorna `null` indisponível
 
+#### Scenario: Percentuais por sexo sobre valores conhecidos
+- **WHEN** um território tem população setorial 300, soma conhecida de homens 40 e de mulheres 60
+- **THEN** os percentuais são 40% e 60%, calculados sobre 100, sem alterar a população 300 nem ocultar a cobertura parcial
+
+#### Scenario: Denominador demográfico indisponível ou zero
+- **WHEN** a soma de homens mais a soma de mulheres é nula ou zero
+- **THEN** ambos os percentuais são `null`, sem substituir valores ausentes por zero
+
 ### Requirement: Distribuição urbana e rural
 
-O sistema SHALL distribuir a população de `setor.populacao` pelas situações `Urbana`, `Rural` e `Não informada`, esta última para situação nula, vazia ou diferente dos dois valores reconhecidos. MUST retornar contagem populacional e percentual do total para cada categoria, incluindo categorias com zero. A soma das populações das categorias MUST corresponder à população total do território; percentuais MUST ser `null` quando o total for zero ou indisponível. Territórios sem setores MUST retornar valores populacionais `null` em todas as categorias.
+O sistema SHALL distribuir a quantidade de setores do território: `total` é a contagem de todos os setores, `urban` conta `situacao = 'Urbana'`, `rural` conta `situacao = 'Rural'` e `unclassified` conta situação NULL ou diferente das categorias reconhecidas. `unclassified` SHALL usar o rótulo `Não informada`; situação NULL MUST NOT ser convertida para Rural. Cada setor MUST ser contado uma única vez e `urban + rural + unclassified` MUST corresponder a `total` e a `total_setores`.
 
-#### Scenario: Situação não informada preserva o total
-- **WHEN** há 60 habitantes em setores urbanos, 30 em rurais e 10 em setores sem situação
-- **THEN** a distribuição retorna 60/60%, 30/30% e 10/10%, respectivamente, com total 100
+Para `total > 0`, os percentuais SHALL ser `urban_pct = urban / total × 100`, `rural_pct = rural / total × 100` e `unclassified_pct = unclassified / total × 100`. A distribuição MUST NOT usar `SUM(setor.populacao)`; a população total SHALL permanecer uma métrica independente calculada por essa soma. Categorias ausentes MUST retornar contagem e percentual zero quando houver setores. Sem setores, todas as contagens MUST ser zero e os três percentuais MUST ser `null`.
 
-#### Scenario: População total zero
-- **WHEN** os setores do território têm população total zero
-- **THEN** as três contagens são zero e seus percentuais são `null`
+#### Scenario: Situação não informada preserva a contagem de setores
+- **WHEN** há seis setores urbanos, três rurais e um com situação NULL
+- **THEN** total é 10, urban é 6/60%, rural é 3/30% e unclassified é 1/10%, sem incluir o setor NULL em Rural
+
+#### Scenario: Distribuição independe da população residente
+- **WHEN** um setor urbano tem 900 habitantes e um rural tem 100 habitantes
+- **THEN** a distribuição retorna total 2, urban 1/50%, rural 1/50% e unclassified 0/0%, enquanto a população total permanece 1.000
+
+#### Scenario: Setores com população total zero
+- **WHEN** dois setores urbanos e dois rurais têm população total zero
+- **THEN** total é 4, urban é 2/50%, rural é 2/50% e unclassified é 0/0%
+
+#### Scenario: Categoria não reconhecida
+- **WHEN** um setor tem situação NULL e outro tem situação diferente de Urbana e Rural
+- **THEN** total é 2, unclassified é 2/100% e urban e rural são 0/0%
+
+#### Scenario: Território sem setores
+- **WHEN** o território não possui setores
+- **THEN** total, urban, rural e unclassified são zero e os três percentuais são `null`
 
 ### Requirement: Precisão e apresentação dos agregados
 

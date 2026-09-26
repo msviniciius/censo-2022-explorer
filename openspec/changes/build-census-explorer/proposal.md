@@ -7,7 +7,7 @@ O arquivo `censo.sqlite` contém os dados necessários para explorar o Censo 202
 ## What Changes
 
 - Especificar duas telas: consulta municipal com autocomplete e consulta estadual com agregados e ranking paginado de municípios por densidade decrescente.
-- Apresentar população, área, densidade, homens, mulheres e distribuição da população urbana/rural em ambas as consultas, indicando dados indisponíveis ou parciais.
+- Apresentar população, área, densidade, homens, mulheres e distribuição dos setores urbanos/rurais/não informados em ambas as consultas, indicando dados indisponíveis ou parciais.
 - Definir regras compartilhadas de agregação, cobertura demográfica, identificação territorial e tratamento das inconsistências observadas na base.
 - Adotar backend Laravel/PHP 8.4 com SQLite e fluxo Controller → Service → Query → SQLite; frontend Vue 3, TypeScript, Vite e Tailwind.
 - Entregar futuramente inicialização completa por `docker compose up --build`, sem instalações ou comandos preparatórios no host além do Docker/Compose.

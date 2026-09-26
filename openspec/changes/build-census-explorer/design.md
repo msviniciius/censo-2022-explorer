@@ -4,6 +4,8 @@
 
 Ver [proposal.md](proposal.md) para motivação e escopo. O repositório contém apenas a infraestrutura OpenSpec e `censo.sqlite`, sem aplicação, dependências ou specs anteriores. Este documento registra decisões propostas para implementação futura; nenhum runtime foi implementado ou testado nesta etapa.
 
+Consultas e resultados da exploração estão em [dataset-exploration.md](dataset-exploration.md). As decisões abaixo preservam todos os registros da fonte; a regra de seleção não autoriza excluir dados dos agregados.
+
 Inspeção somente de leitura da base fornecida em 2026-09-26:
 
 | Tabela | Chave e relações | Registros | Campos usados |
@@ -20,7 +22,7 @@ Achados que afetam o comportamento:
 - O registro municipal `.` tem nome vazio e pertence à UF `43`. Seus dois setores somam população zero e área de 13.085,864101 km². Existem 5.570 municípios selecionáveis; o registro inválido não pode ser eliminado dos totais estaduais sem perder área da fonte de verdade.
 - Não há população ou área nula, negativa ou área zero em `setor` no arquivo atual. A população total é 203.080.756; esse número é referência de auditoria da base, não uma terceira tela nacional.
 - Há 9.327 setores sem linha demográfica; juntos têm população zero. Mesmo nas linhas existentes há 8.691 valores nulos de homens e 8.733 de mulheres. Os campos precisam de coberturas independentes.
-- Há 354.965 setores `Urbana`, 112.031 `Rural` e 1.103 com situação nula. Esses últimos permanecem como `Não informada`.
+- Há 354.965 setores `Urbana`, 112.031 `Rural` e 1.103 com situação nula. Esses últimos são `unclassified`, com rótulo `Não informada`, sem conversão para Rural.
 - `demografia.moradores` coincide com a população setorial onde há valor, mas contém lacunas; não será usado para substituir `setor.populacao`.
 - A tabela `uf` não contém sigla. A interface usará o nome da UF fornecido, sem introduzir um catálogo externo de siglas.
 
@@ -61,7 +63,11 @@ As consultas de detalhes partirão de `setor`, fazendo `LEFT JOIN demografia` po
 
 Retornar cobertura por campo demográfico usando `COUNT(valor)` e total de setores. Se total = 0 ou conhecidos = 0, estado `indisponivel` e valor `null`; se conhecidos = total > 0, estado `completo`; nos demais casos, `parcial` e soma dos valores conhecidos. Não presumir que população = homens + mulheres quando a cobertura é incompleta. O aviso de parcialidade existe mesmo quando setores sem dados têm população zero: trata-se de cobertura por setor, não estimativa de população faltante.
 
-Distribuição: somas condicionais de população para `Urbana`, `Rural` e demais situações; percentual = soma da categoria / população total × 100 quando o denominador é positivo. Território com setores e população zero mantém contagens zero e percentuais nulos. Território sem setores mantém as métricas nulas. Área zero implica densidade nula. Não arredondar valores no backend; testes de ponto flutuante usam tolerância de `1e-6` para área/densidade.
+Percentuais por sexo: usar `SUM(homens) + SUM(mulheres)` do território como denominador, multiplicando a razão de cada soma por 100. Não usar população setorial, `SUM(moradores)` ou `SUM(homens + mulheres)`. Na base nacional, essas duas expressões de soma dos sexos retornam, respectivamente, 202.561.525 e 202.561.116. Se o denominador for nulo ou zero, ambos os percentuais serão `null`, sem imputar ausências. Rotular como distribuição dos valores demográficos conhecidos e preservar os avisos de cobertura.
+
+Distribuição de setores: `total = COUNT(setor.cd_setor)`; `urban` conta setores com `situacao = 'Urbana'`; `rural` conta setores com `situacao = 'Rural'`; `unclassified` conta setores com situação NULL ou diferente das categorias reconhecidas (rótulo `Não informada`), nunca convertidos para Rural. Cada setor contribui uma vez e `urban + rural + unclassified = total = total_setores`. Contar a chave do setor evita contar uma linha sem setor em eventual `LEFT JOIN`.
+
+Para `total > 0`, `urban_pct = urban / total × 100`, `rural_pct = rural / total × 100` e `unclassified_pct = unclassified / total × 100`, com divisão real. Sem setores, as contagens são zero e os três percentuais são `null`. A distribuição não usa `SUM(setor.populacao)` e independe da população residente, inclusive quando esta for zero; população total permanece a métrica independente `SUM(setor.populacao)`. Área zero implica densidade nula. Não arredondar valores no backend; testes de ponto flutuante usam tolerância de `1e-6` para área/densidade.
 
 Alternativa descartada: excluir registros anômalos de todos os cálculos ou converter ausência em zero. Ambas alterariam a interpretação da fonte. O registro sem nome será apenas indisponível para seleção, com explicação na consulta estadual.
 
@@ -75,7 +81,7 @@ Todos os endpoints são GET, retornam JSON e ficam sob `/api`. Sucesso de consul
 | `/municipios/{cd_mun}` | código em string | identificação municipal e `agregados` |
 | `/ufs` | nenhuma | lista de `{ cd_uf, nm_uf }` |
 | `/ufs/{cd_uf}` | código em string | identificação estadual, `agregados`, `setores_sem_municipio_identificavel` |
-| `/ufs/{cd_uf}/municipios` | `page=1`, `per_page=20`, limites nas specs | linhas do ranking e metadados |
+| `/ufs/{cd_uf}/municipios` | `page=1`, `per_page=25`; opções 25, 50 e 100 | linhas do ranking e metadados |
 | `/health` | nenhuma | `{ status: "ok" }` quando pronto |
 
 Identificação municipal: `{ cd_mun: string, nm_mun: string, cd_uf: string, nm_uf: string }`.
@@ -88,8 +94,9 @@ Objeto `agregados`:
 | `area_km2` | número ou `null` |
 | `densidade_hab_km2` | número ou `null` |
 | `total_setores` | inteiro >= 0 |
-| `homens`, `mulheres` | `{ valor: integer ou null, setores_com_valor: integer, total_setores: integer, estado: "completo", "parcial" ou "indisponivel" }` |
-| `distribuicao.urbana`, `.rural`, `.nao_informada` | `{ populacao: integer ou null, percentual: number ou null }` |
+| `homens`, `mulheres` | `{ valor: integer ou null, percentual: number ou null, setores_com_valor: integer, total_setores: integer, estado: "completo", "parcial" ou "indisponivel" }` |
+| `distribuicao.total`, `.urban`, `.rural`, `.unclassified` | inteiros >= 0; total de setores e contagem por categoria |
+| `distribuicao.urban_pct`, `.rural_pct`, `.unclassified_pct` | números ou `null`; percentual de cada contagem sobre `distribuicao.total` |
 
 Linha de ranking: `{ posicao, cd_mun, nm_mun, populacao, area_km2, densidade_hab_km2 }`. Metadados: `{ current_page, per_page, total, last_page }`. A UF já é identificada pela rota e pela seleção da tela. Os tipos numéricos não incluem strings formatadas.
 
@@ -99,7 +106,9 @@ Alternativa: um único endpoint gigante com detalhes e ranking. Endpoints separa
 
 Autocomplete faz correspondência por trecho de nome normalizado, com minúsculas e remoção de marcas de acento por normalização Unicode. Registrar uma função SQLite na conexão PDO para essa normalização, usando a extensão PHP `intl`, incluída na imagem. Usar parâmetros e escape explícito de `%`, `_` e do caractere de escape, para busca literal. O mesmo nome normalizado ordena resultados; código desempata. Não adicionar busca por código, filtros ou catálogo de siglas. Uma varredura de 5.570 nomes é proporcional ao conjunto.
 
-O ranking agrega em SQL os setores dos municípios da UF, calcula densidade como divisão real protegida contra zero e ordena antes de `LIMIT/OFFSET`. O desempate por código e o posicionamento dos nulos garantem paginação determinística. Contar municípios selecionáveis da mesma UF para os metadados, inclusive um eventual município sem setores. Usar `LEFT JOIN` a partir de municípios válidos para preservar esse caso. A posição é `(page - 1) × per_page + índice local + 1`.
+A exploração confirmou 232 nomes compartilhados entre UFs e contagens municipais entre 1 (Distrito Federal) e 853 (Minas Gerais). Manter identificação da UF no autocomplete e seleção por `cd_mun`; o ranking usa filtro por UF e paginação server-side.
+
+O ranking agrega em SQL os setores dos municípios da UF, calcula densidade como divisão real protegida contra zero e ordena antes de `LIMIT/OFFSET`. O desempate por código e o posicionamento dos nulos garantem paginação determinística. Contar municípios selecionáveis da mesma UF para os metadados, inclusive um eventual município sem setores. Usar `LEFT JOIN` a partir de municípios válidos para preservar esse caso. A posição é `(page - 1) × per_page + índice local + 1`. O padrão é `per_page=25`, aceitando somente 25, 50 ou 100; outros tamanhos retornam 422. Minas Gerais, com 853 registros, ocupa 35 páginas no tamanho padrão.
 
 Não há índices secundários na base e eles não serão acrescentados. Evitar uma consulta por município e subconsultas correlacionadas que varram setores repetidamente; adotar agregação em conjunto. Medir os planos e latências com a base real durante a implementação, registrando hardware e condições. Não há SLA numérico estabelecido nesta primeira versão.
 
@@ -111,7 +120,7 @@ Usar SPA com rotas `/municipios` e `/estados`, navegação explícita entre elas
 
 Componentes compartilhados apresentam agregados, cobertura, distribuição e estados de erro. A distribuição será textual/tabular, sem gráficos. Formatação usa `Intl.NumberFormat('pt-BR')`, conforme as specs. Cartões/linhas devem se reorganizar em telas estreitas; a tabela de ranking pode rolar horizontalmente sem ocultar os controles.
 
-No autocomplete, debounce de 300 ms, combobox acessível, seleção explícita e cancelamento/identificação de requisições. Em ambos os fluxos, uma resposta só atualiza a tela se pertencer à seleção e aos parâmetros atuais. Ao trocar de UF, limpar agregados/ranking, voltar à página 1 e carregar ambos independentemente. Ao mudar apenas de página, preservar os agregados. Retry usa a seleção atual. Não persistir seleção em armazenamento local nem acrescentar favoritos/histórico.
+No autocomplete, debounce de 300 ms, combobox acessível, seleção explícita e cancelamento/identificação de requisições. Em ambos os fluxos, uma resposta só atualiza a tela se pertencer à seleção e aos parâmetros atuais. Ao trocar de UF, limpar agregados/ranking, voltar à página 1 e carregar ambos independentemente. A tela oferece tamanhos 25, 50 e 100, iniciando em 25; ao mudar o tamanho, voltar à página 1 e recarregar o ranking no servidor. Ao mudar apenas de página ou tamanho, preservar os agregados da UF. Retry usa a seleção atual. Não persistir seleção em armazenamento local nem acrescentar favoritos/histórico.
 
 Alternativa: páginas renderizadas pelo servidor ou Inertia não atendem à separação HTTP escolhida tão diretamente; gerenciamento global de estado é desnecessário para os dois fluxos.
 

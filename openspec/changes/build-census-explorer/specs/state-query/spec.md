@@ -36,15 +36,23 @@ O sistema SHALL disponibilizar `GET /api/ufs/{cd_uf}/municipios?page=<n>&per_pag
 
 ### Requirement: Paginação verificável
 
-A paginação SHALL usar `page=1` e `per_page=20` por padrão, aceitar somente inteiros `page >= 1` e `1 <= per_page <= 100` e retornar HTTP 422 para entradas inválidas. A resposta MUST incluir `current_page`, `per_page`, `total` e `last_page`, sendo `last_page = max(1, ceil(total / per_page))`. Página além da última MUST retornar HTTP 200 com lista vazia e metadados corretos. A tela SHALL usar 20 itens por página e controles anterior/próxima, com indicação de página e total, desabilitados nos limites e durante carregamento.
+A paginação SHALL usar `page=1` e `per_page=25` por padrão, aceitar somente inteiros `page >= 1` e `per_page` pertencente a `{25, 50, 100}` e retornar HTTP 422 para entradas inválidas. A resposta MUST incluir `current_page`, `per_page`, `total` e `last_page`, sendo `last_page = max(1, ceil(total / per_page))`. Página além da última MUST retornar HTTP 200 com lista vazia e metadados corretos. A tela SHALL iniciar com 25 itens por página, oferecer as opções 25, 50 e 100 e controles anterior/próxima, com indicação de página e total, desabilitados nos limites e durante carregamento. Mudar o tamanho MUST reiniciar na página 1 e solicitar a nova página ao servidor, preservando os agregados da UF. Filtro por UF, ordenação e paginação MUST permanecer server-side.
 
 #### Scenario: Navegação sem repetir municípios
-- **WHEN** uma UF possui 45 municípios e são solicitadas as páginas 1, 2 e 3 com tamanho 20
-- **THEN** retornam 20, 20 e 5 itens, posições de 1 a 45, total 45 e última página 3, sem repetição nem omissão
+- **WHEN** uma UF possui 55 municípios e são solicitadas as páginas 1, 2 e 3 com tamanho 25
+- **THEN** retornam 25, 25 e 5 itens, posições de 1 a 55, total 55 e última página 3, sem repetição nem omissão
 
 #### Scenario: Página vazia e parâmetros inválidos
-- **WHEN** são solicitadas a página 4 de um ranking de três páginas, a página zero ou tamanho 101
+- **WHEN** são solicitadas a página 4 de um ranking de três páginas, a página zero ou tamanhos 20, 26 ou 101
 - **THEN** a primeira consulta retorna lista vazia com HTTP 200 e as outras retornam HTTP 422
+
+#### Scenario: Tamanho padrão e opções de página
+- **WHEN** o ranking de Minas Gerais contém 853 municípios e `per_page` não é informado
+- **THEN** a resposta usa 25 itens por página, informa 35 páginas e retorna três itens na última página
+
+#### Scenario: Troca do tamanho da página
+- **WHEN** o usuário troca o tamanho de 25 para 50 ou 100 em um ranking com 853 municípios
+- **THEN** o ranking volta à página 1 e consulta o servidor com o tamanho escolhido, informando 18 ou nove páginas, respectivamente, sem recarregar os agregados
 
 ### Requirement: Estados independentes e navegação entre telas
 
