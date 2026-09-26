@@ -44,10 +44,10 @@ Rastreabilidade dos critérios de aceite:
 
 ## 5. Inicialização automática e prontidão da entrega
 
-- [ ] 5.1 Completar entrypoint com configuração padrão, chave persistida em storage separado e preparação automática das permissões; verificar inicialização sem `.env` ou volumes prévios e reinicialização sem passos adicionais, com cache/sessão fora da base censitária.
-- [ ] 5.2 Finalizar montagem somente leitura com `create_host_path: false` e validação de arquivo/esquema na inicialização; verificar, em cópias isoladas, arquivo ausente, ilegível, corrompido e esquema incompatível, com falha legível sem banco substituto e sem prontidão indevida.
+- [X] 5.1 Completar entrypoint com configuração padrão, chave persistida em storage separado e preparação automática das permissões; verificar inicialização sem `.env` ou volumes prévios e reinicialização sem passos adicionais, com cache/sessão fora da base censitária.
+- [X] 5.2 Finalizar montagem somente leitura com `create_host_path: false` e validação de arquivo/esquema na inicialização; verificar, em cópias isoladas, arquivo ausente, ilegível, corrompido e esquema incompatível, com falha legível sem banco substituto e sem prontidão indevida.
 - [X] 5.3 Implementar `/api/health` pelo fluxo de camadas e healthcheck Compose, com logs e respostas JSON genéricas; verificar HTTP 200 com base disponível, 503 quando a leitura falhar, API desconhecida com 404 JSON e ausência de stack trace/SQL/caminhos na resposta.
-- [ ] 5.4 Finalizar imagens de runtime com assets e dependências incorporados, Nginx na mesma origem e fallback das rotas da interface; verificar que não dependem de Vite/Node em execução ou bind mounts de código; atualizar README com endereço, execução, encerramento, testes e diagnósticos de inicialização, conferindo os comandos documentados.
+- [X] 5.4 Finalizar imagens de runtime com assets e dependências incorporados, Nginx na mesma origem e fallback das rotas da interface; verificar que não dependem de Vite/Node em execução ou bind mounts de código; atualizar README com endereço, execução, encerramento, testes e diagnósticos de inicialização, conferindo os comandos documentados.
 
 ## 6. Aceite integrado da primeira versão
 
