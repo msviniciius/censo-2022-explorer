@@ -341,4 +341,196 @@ describe('MunicipalityView.vue', () => {
     expect(mockDetails.data.cd_uf).toBe('01')
     expect(wrapper.text()).toContain('Código: 0100015')
   })
+
+  it('race condition nos detalhes: B responde antes de A, a tela continua mostrando B', async () => {
+    const router = createTestRouter()
+    router.push('/municipios')
+    await router.isReady()
+
+    let resolveDetailsA: (val: DetailsResponse) => void = () => {}
+    let resolveDetailsB: (val: DetailsResponse) => void = () => {}
+
+    const detailsA = {
+      data: {
+        cd_mun: '1100015',
+        nm_mun: 'Município A',
+        cd_uf: '11',
+        nm_uf: 'Estado A',
+        agregados: {
+          total_setores: 10,
+          populacao: 1000,
+          area_km2: 100.0,
+          densidade_hab_km2: 10.0,
+          distribuicao: { total: 10, urban: 5, rural: 5, unclassified: 0, urban_pct: 50, rural_pct: 50, unclassified_pct: 0 },
+          homens: { valor: 500, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' },
+          mulheres: { valor: 500, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' }
+        }
+      }
+    } satisfies DetailsResponse
+
+    const detailsB = {
+      data: {
+        cd_mun: '3550308',
+        nm_mun: 'Município B',
+        cd_uf: '35',
+        nm_uf: 'Estado B',
+        agregados: {
+          total_setores: 20,
+          populacao: 2000,
+          area_km2: 200.0,
+          densidade_hab_km2: 10.0,
+          distribuicao: { total: 20, urban: 10, rural: 10, unclassified: 0, urban_pct: 50, rural_pct: 50, unclassified_pct: 0 },
+          homens: { valor: 1000, percentual: 50, setores_com_valor: 20, total_setores: 20, estado: 'completo' },
+          mulheres: { valor: 1000, percentual: 50, setores_com_valor: 20, total_setores: 20, estado: 'completo' }
+        }
+      }
+    } satisfies DetailsResponse
+
+    vi.spyOn(censusApi, 'getDetails')
+      .mockImplementationOnce(() => new Promise(resolve => { resolveDetailsA = resolve }))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveDetailsB = resolve }))
+
+    const wrapper = mount(MunicipalityView, {
+      global: { plugins: [router] }
+    })
+
+    const searchComp = wrapper.findComponent(MunicipalitySearch)
+
+    // Município A selecionado -> inicia request A
+    searchComp.vm.$emit('select', { cd_mun: '1100015', nm_mun: 'Município A', cd_uf: '11', nm_uf: 'Estado A' })
+    await flushPromises()
+
+    // Município B selecionado -> inicia request B
+    searchComp.vm.$emit('select', { cd_mun: '3550308', nm_mun: 'Município B', cd_uf: '35', nm_uf: 'Estado B' })
+    await flushPromises()
+
+    // B responde primeiro
+    resolveDetailsB(detailsB)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Município B')
+    expect(wrapper.text()).toContain('2.000 hab')
+    expect(wrapper.text()).not.toContain('Município A')
+
+    // A responde depois
+    resolveDetailsA(detailsA)
+    await flushPromises()
+
+    // Tela MUST continuar mostrando B
+    expect(wrapper.text()).toContain('Município B')
+    expect(wrapper.text()).toContain('2.000 hab')
+    expect(wrapper.text()).not.toContain('Município A')
+    expect(wrapper.text()).not.toContain('1.000 hab')
+  })
+
+  it('editar a busca limpa a seleção e impede que resposta pendente de detalhes reapareça', async () => {
+    const router = createTestRouter()
+    router.push('/municipios')
+    await router.isReady()
+
+    let resolveDetailsA: (val: DetailsResponse) => void = () => {}
+    const detailsA = {
+      data: {
+        cd_mun: '1100015',
+        nm_mun: 'Município A',
+        cd_uf: '11',
+        nm_uf: 'Estado A',
+        agregados: {
+          total_setores: 10,
+          populacao: 1000,
+          area_km2: 100.0,
+          densidade_hab_km2: 10.0,
+          distribuicao: { total: 10, urban: 5, rural: 5, unclassified: 0, urban_pct: 50, rural_pct: 50, unclassified_pct: 0 },
+          homens: { valor: 500, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' },
+          mulheres: { valor: 500, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' }
+        }
+      }
+    } satisfies DetailsResponse
+
+    vi.spyOn(censusApi, 'getDetails').mockImplementation(() => new Promise(resolve => { resolveDetailsA = resolve }))
+
+    const wrapper = mount(MunicipalityView, {
+      global: { plugins: [router] }
+    })
+
+    const searchComp = wrapper.findComponent(MunicipalitySearch)
+
+    // Município A selecionado -> inicia request A
+    searchComp.vm.$emit('select', { cd_mun: '1100015', nm_mun: 'Município A', cd_uf: '11', nm_uf: 'Estado A' })
+    await flushPromises()
+    expect(router.currentRoute.value.query.cd).toBe('1100015')
+    expect(wrapper.text()).toContain('Carregando detalhes...')
+
+    // Usuário edita o campo de busca -> emite 'edit'
+    searchComp.vm.$emit('edit')
+    await flushPromises()
+
+    // Seleção é limpa: detalhes vazios, query string sem cd, sem loading
+    expect(router.currentRoute.value.query.cd).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Carregando detalhes...')
+    expect(wrapper.text()).not.toContain('Município A')
+
+    // Request A responde depois
+    resolveDetailsA(detailsA)
+    await flushPromises()
+
+    // Os detalhes de A NÃO podem reaparecer
+    expect(wrapper.text()).not.toContain('Município A')
+    expect(wrapper.text()).not.toContain('1.000 hab')
+    expect(wrapper.text()).not.toContain('Carregando detalhes...')
+  })
+
+  it('editar a busca remove detalhes exibidos e limpa query string, enquanto setas preservam a seleção', async () => {
+    const router = createTestRouter()
+    router.push('/municipios')
+    await router.isReady()
+
+    const mockDetails = {
+      data: {
+        cd_mun: '1100015',
+        nm_mun: 'Município Existente',
+        cd_uf: '11',
+        nm_uf: 'Estado Teste',
+        agregados: {
+          total_setores: 10,
+          populacao: 1500,
+          area_km2: 50.0,
+          densidade_hab_km2: 30.0,
+          distribuicao: { total: 10, urban: 5, rural: 5, unclassified: 0, urban_pct: 50, rural_pct: 50, unclassified_pct: 0 },
+          homens: { valor: 750, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' },
+          mulheres: { valor: 750, percentual: 50, setores_com_valor: 10, total_setores: 10, estado: 'completo' }
+        }
+      }
+    } satisfies DetailsResponse
+
+    vi.spyOn(censusApi, 'getDetails').mockResolvedValue(mockDetails)
+
+    const wrapper = mount(MunicipalityView, {
+      global: { plugins: [router] }
+    })
+
+    const searchComp = wrapper.findComponent(MunicipalitySearch)
+    searchComp.vm.$emit('select', { cd_mun: '1100015', nm_mun: 'Município Existente', cd_uf: '11', nm_uf: 'Estado Teste' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Município Existente')
+    expect(router.currentRoute.value.query.cd).toBe('1100015')
+
+    // Pressionar setas no campo de busca não deve emitir edit nem limpar a seleção
+    const input = searchComp.find('input')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'ArrowUp' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Município Existente')
+    expect(router.currentRoute.value.query.cd).toBe('1100015')
+
+    // Editar efetivamente a busca emite edit e limpa a seleção anterior
+    searchComp.vm.$emit('edit')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Município Existente')
+    expect(wrapper.text()).not.toContain('1.500 hab')
+    expect(router.currentRoute.value.query.cd).toBeUndefined()
+  })
 })
