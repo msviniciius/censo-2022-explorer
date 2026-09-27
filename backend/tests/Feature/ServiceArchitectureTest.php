@@ -1,15 +1,16 @@
 <?php
 
+use App\Services\DemographicMetricsService;
 use App\Services\MunicipalCensusService;
 use App\Services\SectorMetricsService;
 use App\Services\StateCensusService;
 
-arch('census composition services depend only on concrete queries and sector metrics')
+arch('census composition services depend only on concrete queries and metric services')
     ->expect([MunicipalCensusService::class, StateCensusService::class])
-    ->toOnlyUse(['App\Queries', SectorMetricsService::class]);
+    ->toOnlyUse(['App\Queries', SectorMetricsService::class, DemographicMetricsService::class]);
 
-arch('sector metrics have no external dependencies')
-    ->expect(SectorMetricsService::class)
+arch('metric services have no external dependencies')
+    ->expect([SectorMetricsService::class, DemographicMetricsService::class])
     ->toUseNothing();
 
 arch('services cannot access database drivers, builders, facades or HTTP')

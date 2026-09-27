@@ -95,6 +95,9 @@ it('aggregates the whole UF including unnamed municipality sectors without mixin
         ->and($query->forState('02'))->toBe([
             'total_setores' => 1, 'populacao' => 900, 'area_km2' => 50.0,
             'urban' => 1, 'rural' => 0, 'unclassified' => 0,
+            'homens_sum' => 400, 'mulheres_sum' => 500,
+            'homens_com_valor' => 1, 'mulheres_com_valor' => 1,
+            'setores_sem_municipio_identificavel' => 0,
         ]);
 });
 
@@ -121,6 +124,8 @@ it('composes identity and sector metrics through the municipal service', functio
                 'total' => 3, 'urban' => 1, 'rural' => 1, 'unclassified' => 1,
                 'urban_pct' => 100 / 3, 'rural_pct' => 100 / 3, 'unclassified_pct' => 100 / 3,
             ],
+            'homens' => ['valor' => 85, 'percentual' => 42.5, 'setores_com_valor' => 2, 'total_setores' => 3, 'estado' => 'parcial'],
+            'mulheres' => ['valor' => 115, 'percentual' => 57.5, 'setores_com_valor' => 2, 'total_setores' => 3, 'estado' => 'parcial'],
         ],
     ], 1e-6);
 });
@@ -135,7 +140,10 @@ it('composes identity and sector metrics through the state service', function ()
                 'total' => 6, 'urban' => 2, 'rural' => 1, 'unclassified' => 3,
                 'urban_pct' => 100 / 3, 'rural_pct' => 100 / 6, 'unclassified_pct' => 50.0,
             ],
+            'homens' => ['valor' => 95, 'percentual' => 95 / 230 * 100, 'setores_com_valor' => 3, 'total_setores' => 6, 'estado' => 'parcial'],
+            'mulheres' => ['valor' => 135, 'percentual' => 135 / 230 * 100, 'setores_com_valor' => 3, 'total_setores' => 6, 'estado' => 'parcial'],
         ],
+        'setores_sem_municipio_identificavel' => 2,
     ], 1e-6);
 });
 
@@ -149,6 +157,8 @@ it('keeps existing empty territories distinct from missing territories', functio
                 'total' => 0, 'urban' => 0, 'rural' => 0, 'unclassified' => 0,
                 'urban_pct' => null, 'rural_pct' => null, 'unclassified_pct' => null,
             ],
+            'homens' => ['valor' => null, 'percentual' => null, 'setores_com_valor' => 0, 'total_setores' => 0, 'estado' => 'indisponivel'],
+            'mulheres' => ['valor' => null, 'percentual' => null, 'setores_com_valor' => 0, 'total_setores' => 0, 'estado' => 'indisponivel'],
         ]);
 })->with([
     'municipality' => [MunicipalCensusService::class, '0100003', 'cd_mun'],
@@ -167,6 +177,9 @@ it('returns no identity for missing territories or SQL-like codes', function (st
             ->toBe([
                 'total_setores' => 0, 'populacao' => null, 'area_km2' => null,
                 'urban' => 0, 'rural' => 0, 'unclassified' => 0,
+                'homens_sum' => null, 'mulheres_sum' => null,
+                'homens_com_valor' => 0, 'mulheres_com_valor' => 0,
+                ...($method === 'forState' ? ['setores_sem_municipio_identificavel' => 0] : []),
             ]);
     }
 })->with(['missing' => ['99'], 'SQL-like input' => ["' OR 1=1 --"]]);
