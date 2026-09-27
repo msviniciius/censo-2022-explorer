@@ -110,8 +110,8 @@ Este é o contrato **interno**, sem envelope `data`, status HTTP ou validação 
 rotas. O design D4 já prevê o envelope HTTP futuro; sua implementação e validação
 continuam nos grupos 3/4. Atualmente a identificação interna consulta o código
 existente, sem aplicar ainda a regra de município selecionável; isso não torna
-`.` elegível para a futura busca/seleção. Autocomplete, endpoints territoriais,
-ranking e frontend ainda não estão implementados.
+`.` elegível para a futura busca/seleção. A Query de autocomplete está implementada
+na task 3.1; endpoints territoriais, ranking e frontend ainda não estão implementados.
 
 ## Particularidades confirmadas do snapshot
 
