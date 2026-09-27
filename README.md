@@ -1,8 +1,9 @@
 # censo-2022-explorer
 
 Census Explorer com bootstrap executável e camada interna de agregação municipal
-e estadual. A interface contém uma página inicial Vue e a API expõe apenas
-prontidão; endpoints territoriais e ranking ainda não foram implementados.
+e estadual. A API expõe prontidão, busca e detalhes municipais. A interface
+contém uma página inicial Vue; telas de consulta, endpoints estaduais e ranking
+ainda não foram implementados.
 
 ## Executar
 
@@ -42,9 +43,9 @@ app executa PHP 8.4-FPM; web serve os assets com Nginx e encaminha /api ao Larav
 Somente web publica uma porta. As imagens base estão fixadas por digest e as
 dependências por lockfiles.
 
-O healthcheck segue Controller → Service → Query → SQLite. Os Services de
-agregação municipal/estadual seguem as mesmas camadas e ainda não têm endpoints
-HTTP. Não há Repository ou Organizer.
+O healthcheck e os endpoints municipais seguem Controller → Service → Query →
+SQLite. A agregação estadual permanece interna, sem endpoint HTTP. Não há
+Repository ou Organizer.
 
 ## Verificações do bootstrap
 
@@ -86,3 +87,11 @@ sha256sum censo.sqlite
 O comando valida todos os campos do contrato interno e o hash esperado antes e
 depois, incluindo os dois setores do registro `.` nos totais estaduais. Uma
 divergência faz o teste falhar com território/campo e valores comparados.
+
+
+## API municipal
+
+A task 3.2 expõe `GET /api/municipios?q=<texto>` e
+`GET /api/municipios/{cd_mun}`. Contratos, exemplos, validação e comandos de
+smoke test estão em [docs/municipal-api.md](docs/municipal-api.md).
+A interface municipal permanece para as próximas tasks.

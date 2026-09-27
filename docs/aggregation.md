@@ -106,12 +106,14 @@ Demografia
   estado: "completo" | "parcial" | "indisponivel"
 ```
 
-Este é o contrato **interno**, sem envelope `data`, status HTTP ou validação de
-rotas. O design D4 já prevê o envelope HTTP futuro; sua implementação e validação
-continuam nos grupos 3/4. Atualmente a identificação interna consulta o código
-existente, sem aplicar ainda a regra de município selecionável; isso não torna
-`.` elegível para a futura busca/seleção. A Query de autocomplete está implementada
-na task 3.1; endpoints territoriais, ranking e frontend ainda não estão implementados.
+Este é o contrato **interno**, sem envelope `data` ou status HTTP. Na task 3.2,
+o endpoint municipal envolve o DTO em `data`, sem renomear campos nem recalcular
+métricas; [contrato HTTP e exemplos](municipal-api.md). O Service municipal retorna
+`null` também para identidade com nome vazio após trim, antes de agregar; a rota
+exige sete dígitos ASCII. A Query de identidade continua independente de setores.
+A Query de autocomplete aplica sua própria elegibilidade. O agregado estadual
+continua incluindo `.`; endpoints estaduais, ranking e telas de consulta seguem
+pendentes.
 
 ## Particularidades confirmadas do snapshot
 

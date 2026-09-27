@@ -1,8 +1,10 @@
 <?php
 
+use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -16,6 +18,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (Throwable $exception, Request $request) {
             if (! $request->is('api', 'api/*')) {
                 return null;
+            }
+
+            if ($exception instanceof ValidationException) {
+                return response()->json([
+                    'message' => 'Os parâmetros informados são inválidos.',
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+
+            if ($exception instanceof SQLiteDatabaseDoesNotExistException || $exception instanceof PDOException) {
+                return response()->json(['message' => 'Base censitária indisponível.'], 503);
             }
 
             $status = $exception instanceof HttpExceptionInterface

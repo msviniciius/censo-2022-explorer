@@ -23,7 +23,7 @@ final class MunicipalCensusService
     {
         $identity = $this->identityQuery->find($code);
 
-        if ($identity === null) {
+        if ($identity === null || trim($identity['nm_mun']) === '') {
             return null;
         }
 
