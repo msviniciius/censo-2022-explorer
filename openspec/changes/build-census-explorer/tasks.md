@@ -28,7 +28,7 @@ Rastreabilidade dos critérios de aceite:
 
 ## 3. Incremento completo de consulta municipal
 
-- [ ] 3.1 Implementar Query de autocomplete com normalização Unicode, parâmetros e escape de busca literal; verificar acentos, caixa, homônimos, ordenação, limite de dez, termo curto/sem resultado, exclusão do registro inválido e caracteres `%`, `_`, aspas e escape.
+- [X] 3.1 Implementar Query de autocomplete com normalização Unicode, parâmetros e escape de busca literal; verificar acentos, caixa, homônimos, ordenação, limite de dez, termo curto/sem resultado, exclusão do registro inválido e caracteres `%`, `_`, aspas e escape.
 - [ ] 3.2 Expor endpoints de busca e detalhes por Controller → Service → Query, com validação e envelopes JSON do design; verificar contratos HTTP 200/404/422, parâmetros com tipo inválido, códigos em strings e agregados tipados; documentar exemplos dos dois endpoints.
 - [ ] 3.3 Criar estrutura da SPA, rotas e navegação das duas telas e componentes de apresentação dos agregados; verificar formatação pt-BR, unidades, valores nulos, cobertura parcial e distribuição por quantidade de setores e por sexo (esta última rotulada como valores conhecidos) com testes de componente, além de recarga direta das rotas.
 - [ ] 3.4 Implementar autocomplete acessível e seleção municipal com debounce de 300 ms; verificar com testes de interação o limite mínimo, setas/Enter/Escape, limpeza da seleção ao editar e descarte de respostas obsoletas tanto da busca quanto dos detalhes.
