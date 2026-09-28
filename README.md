@@ -188,7 +188,7 @@ com zero nem estimativa de dados faltantes.
   auditorias no snapshot real verificam resultados sem usar as Queries da
   aplicação como referência esperada.
 
-## O que faria diferente com mais tempo
+## O que eu faria diferente com mais tempo
 
 - Consolidaria as verificações em CI, com testes rápidos a cada alteração e
   auditorias do dataset e fluxos de navegador em uma etapa de integração.
