@@ -46,3 +46,7 @@ arch('queries do not depend on HTTP or services')
 arch('state list service delegates only to its concrete query')
     ->expect(App\Services\StateListService::class)
     ->toOnlyUse([App\Queries\StateListQuery::class]);
+
+arch('state ranking service delegates only to identity and ranking queries')
+    ->expect(StateRankingService::class)
+    ->toOnlyUse([App\Queries\StateIdentityQuery::class, App\Queries\StateRankingQuery::class]);

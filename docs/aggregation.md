@@ -239,3 +239,37 @@ Esses tempos incluem execução/fetch e, no lado da aplicação, resolução dos
 Services. São evidência desta execução, não SLA, benchmark ou justificativa para
 índices/cache. O hash antes/depois foi idêntico ao esperado. Não foram necessárias
 correções na camada de agregação. A task 2.5 permanece desmarcada para revisão.
+
+
+## Preparação interna do ranking estadual — task 4.2
+
+`StateRankingQuery` parte da lista de municípios elegíveis da UF solicitada,
+agrega setores em lote por `cd_mun` e só então calcula densidade e posições no
+SQLite. A fórmula é `CAST(populacao AS REAL) / NULLIF(area_km2, 0)` sobre os
+totais municipais. Não há média de densidades, arredondamento, preenchimento de
+NULLs com zero, agregação/ordenação em PHP ou consulta por município.
+
+A elegibilidade exige `m.cd_uf = :cd_uf`, código municipal de sete dígitos
+ASCII (`LENGTH(m.cd_mun) = 7` e `m.cd_mun NOT GLOB '*[^0-9]*'`) e nome não vazio
+após `TRIM`. A ordenação global é densidade conhecida primeiro, densidade
+`DESC`, depois `cd_mun ASC`; nomes não desempatarão. `ROW_NUMBER()` produz a
+posição completa antes de qualquer recorte futuro.
+
+O `LEFT JOIN` dos totais setoriais mantém municípios elegíveis sem setores; suas
+somas e densidade permanecem `null` e ocupam o fim pela ordenação. O registro
+`cd_mun='.'` é inelegível ao ranking, enquanto `StateCensusService` segue
+incluindo seus dois setores nos agregados e no contador da UF 43. O Service de
+ranking consulta identidade uma vez e executa uma única Query set-based, sem
+N+1.
+
+Nesta task, a rota pública de ranking permanece ausente. O Controller é exercitado
+isoladamente e a integração HTTP, incluindo a resposta paginada `data + meta`,
+será publicada somente na task 4.3. Não há contrato HTTP intermediário sem
+paginação.
+
+A comparação independente do dataset real está em
+[`StateRankingAuditTest.php`](../backend/tests/Dataset/StateRankingAuditTest.php),
+com SQL próprio em [`ranking.sql`](../backend/tests/Dataset/sql/ranking.sql). A
+execução confirmou equivalência em todas as linhas, métricas, ordem e posições,
+sem duplicações ou omissões. As contagens observadas foram MG 31 = 853, SP 35 =
+645, RS 43 = 497, AP 16 = 16, RR 14 = 15 e DF 53 = 1.

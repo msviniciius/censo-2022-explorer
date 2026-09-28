@@ -83,8 +83,11 @@ O tratamento global existente produz os erros, sem SQL, caminhos ou stack traces
 | 500 | `{"message":"Não foi possível atender à solicitação."}` para falha inesperada |
 
 A 4.1 não define parâmetros de query string validáveis nem novo caso de 422.
-Ranking e paginação pertencem às tasks 4.2/4.3; a interface e recuperação estadual
-pertencem às tasks 4.4/4.5.
+A preparação técnica do ranking estadual é descrita em [aggregation.md](aggregation.md).
+A Query, o Service e o Controller isolado são trabalho interno da task 4.2. A rota
+pública `GET /api/ufs/{cd_uf}/municipios` e o contrato paginado `data + meta` só
+serão registrados na task 4.3. Até lá, esse ranking não integra a API pública.
+A interface e recuperação estadual pertencem às tasks 4.4/4.5.
 
 ## Verificação
 
