@@ -114,7 +114,8 @@ exige sete dígitos ASCII. A Query de identidade continua independente de setore
 A Query de autocomplete aplica sua própria elegibilidade. O agregado estadual
 continua incluindo `.`; a task 4.1 expõe esse DTO em `GET /api/ufs/{cd_uf}` e
 lista as UFs em `GET /api/ufs`, conforme o [contrato HTTP estadual](state-api.md).
-Ranking e interface estadual seguem pendentes.
+O ranking estadual, descrito abaixo, é paginado no SQLite após `ROW_NUMBER()`.
+Interface e recuperação estadual seguem pendentes.
 
 ## Particularidades confirmadas do snapshot
 
@@ -241,7 +242,7 @@ Services. São evidência desta execução, não SLA, benchmark ou justificativa
 correções na camada de agregação. A task 2.5 permanece desmarcada para revisão.
 
 
-## Preparação interna do ranking estadual — task 4.2
+## Ranking estadual — tasks 4.2–4.3
 
 `StateRankingQuery` parte da lista de municípios elegíveis da UF solicitada,
 agrega setores em lote por `cd_mun` e só então calcula densidade e posições no
@@ -253,7 +254,7 @@ A elegibilidade exige `m.cd_uf = :cd_uf`, código municipal de sete dígitos
 ASCII (`LENGTH(m.cd_mun) = 7` e `m.cd_mun NOT GLOB '*[^0-9]*'`) e nome não vazio
 após `TRIM`. A ordenação global é densidade conhecida primeiro, densidade
 `DESC`, depois `cd_mun ASC`; nomes não desempatarão. `ROW_NUMBER()` produz a
-posição completa antes de qualquer recorte futuro.
+posição global antes do recorte `LIMIT/OFFSET` no SQLite.
 
 O `LEFT JOIN` dos totais setoriais mantém municípios elegíveis sem setores; suas
 somas e densidade permanecem `null` e ocupam o fim pela ordenação. O registro
@@ -262,10 +263,10 @@ incluindo seus dois setores nos agregados e no contador da UF 43. O Service de
 ranking consulta identidade uma vez e executa uma única Query set-based, sem
 N+1.
 
-Nesta task, a rota pública de ranking permanece ausente. O Controller é exercitado
-isoladamente e a integração HTTP, incluindo a resposta paginada `data + meta`,
-será publicada somente na task 4.3. Não há contrato HTTP intermediário sem
-paginação.
+A rota `GET /api/ufs/{cd_uf}/municipios` expõe a página com `data + meta`, conforme
+[state-api.md](state-api.md). Uma CTE conta os elegíveis; seu `LEFT JOIN` com a
+página mantém o total quando o recorte está vazio. Apenas os itens da página
+chegam ao PHP, que remove a linha sentinela quando não há itens.
 
 A comparação independente do dataset real está em
 [`StateRankingAuditTest.php`](../backend/tests/Dataset/StateRankingAuditTest.php),

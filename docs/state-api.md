@@ -1,4 +1,4 @@
-# API estadual — task 4.1
+# API estadual — tasks 4.1–4.3
 
 ## Lista de UFs
 
@@ -71,7 +71,7 @@ NULLs e avisos de cobertura. Números não recebem formatação nem arredondamen
 
 ## Status e erros
 
-Ambos os endpoints retornam JSON mesmo sem `Accept: application/json`.
+Os endpoints retornam JSON mesmo sem `Accept: application/json`.
 O tratamento global existente produz os erros, sem SQL, caminhos ou stack traces.
 
 | Status | Resposta / condição |
@@ -82,18 +82,76 @@ O tratamento global existente produz os erros, sem SQL, caminhos ou stack traces
 | 503 | `{"message":"Base censitária indisponível."}` para falha de acesso à base |
 | 500 | `{"message":"Não foi possível atender à solicitação."}` para falha inesperada |
 
-A 4.1 não define parâmetros de query string validáveis nem novo caso de 422.
-A preparação técnica do ranking estadual é descrita em [aggregation.md](aggregation.md).
-A Query, o Service e o Controller isolado são trabalho interno da task 4.2. A rota
-pública `GET /api/ufs/{cd_uf}/municipios` e o contrato paginado `data + meta` só
-serão registrados na task 4.3. Até lá, esse ranking não integra a API pública.
-A interface e recuperação estadual pertencem às tasks 4.4/4.5.
+## Ranking municipal de uma UF
+
+`GET /api/ufs/{cd_uf}/municipios?page=<n>&per_page=<n>` retorna os municípios
+selecionáveis da UF ordenados pela densidade agregada decrescente, sem arredondar;
+empates são resolvidos por `cd_mun` crescente e densidades nulas ficam no final.
+`posicao` é global na UF e permanece contínua entre páginas. A agregação e o ranking
+são executados no SQLite antes do recorte paginado.
+
+`page` é inteiro a partir de 1 e assume `1` quando ausente. `per_page` aceita
+exclusivamente `25`, `50` ou `100` e assume `25` quando ausente. Valores vazios,
+não inteiros, menores que 1 ou tamanhos não permitidos retornam 422 no contrato
+global de validação. Chaves repetidas seguem o parser HTTP padrão.
+
+Exemplo completo da fixture de testes para `GET /api/ufs/43/municipios`:
+
+```json
+{
+  "data": [
+    {
+      "posicao": 1,
+      "cd_mun": "4300001",
+      "nm_mun": "Município válido",
+      "populacao": 10,
+      "area_km2": 1,
+      "densidade_hab_km2": 10
+    }
+  ],
+  "meta": {"current_page": 1, "per_page": 25, "total": 1, "last_page": 1}
+}
+```
+
+Códigos permanecem strings; posição, população e metadados são inteiros; área e
+densidade são números. População, área e densidade podem ser `null`.
+`total` conta municípios elegíveis e `last_page = max(1, ceil(total/per_page))`.
+Não há campos `links`, `from` ou `to`. Uma página além da última
+retorna 200 com `data: []`, a página solicitada em `current_page`, e o total/
+`last_page` reais. Uma UF existente sem municípios elegíveis também retorna 200
+com lista vazia, `total: 0` e `last_page: 1`. UF malformada ou inexistente retorna
+404; indisponibilidade censitária retorna 503; falhas inesperadas retornam 500.
+Erros são JSON genéricos, sem SQL, caminhos ou stack traces. O ranking não altera
+os agregados de `GET /api/ufs/{cd_uf}`. A interface e recuperação estadual
+pertencem às tasks 4.4/4.5.
+
+Exemplo de erro: `GET /api/ufs/31/municipios?page=0` retorna HTTP 422:
+
+```json
+{
+  "message": "Os parâmetros informados são inválidos.",
+  "errors": {"page": ["The page field must be at least 1."]}
+}
+```
+
+No snapshot auditado, MG possui 853 municípios elegíveis: 35 páginas de 25
+(a última com 3 itens), 18 de 50 ou 9 de 100. A página 36 de tamanho 25 retorna
+`{"data":[],"meta":{"current_page":36,"per_page":25,"total":853,"last_page":35}}`.
+Para uma UF existente sem elegíveis, `page=2&per_page=50` retorna
+`{"data":[],"meta":{"current_page":2,"per_page":50,"total":0,"last_page":1}}`.
+
+Fluxo: `StateRankingController → StateRankingService → StateIdentityQuery /
+StateRankingQuery`. Uma UF existente exige duas consultas, inclusive para página
+vazia; UF inexistente encerra após a identidade. O total acompanha a página na
+mesma consulta SQL. Não há filtros textuais nem ordenação configurável.
 
 ## Verificação
 
 ```sh
 docker compose --profile test build backend-test
 docker compose run --rm backend-test php vendor/bin/pest tests/Feature/StateHttpTest.php
+docker compose run --rm backend-test php vendor/bin/pest tests/Feature/StateRankingTest.php
+docker compose --profile audit run --build --rm dataset-audit php vendor/bin/pest --configuration phpunit.dataset.xml tests/Dataset/StateRankingAuditTest.php
 docker compose run --rm backend-test php vendor/bin/pest tests/Feature/ServiceArchitectureTest.php
 docker compose run --rm backend-test
 

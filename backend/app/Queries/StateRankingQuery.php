@@ -8,9 +8,13 @@ final class StateRankingQuery
 {
     public function __construct(private DatabaseManager $database) {}
 
-    /** @return list<array{posicao: int, cd_mun: string, nm_mun: string, populacao: int|null, area_km2: float|null, densidade_hab_km2: float|null}> */
-    public function forState(string $code): array
+    /** @return array{total: int, items: list<array{posicao: int, cd_mun: string, nm_mun: string, populacao: int|null, area_km2: float|null, densidade_hab_km2: float|null}>} */
+    public function forState(string $code, int $page, int $perPage): array
     {
+        $offset = $page - 1 > intdiv(PHP_INT_MAX, $perPage)
+            ? PHP_INT_MAX
+            : ($page - 1) * $perPage;
+
         $rows = $this->database->connection('census')->select(<<<'SQL'
             WITH eligible AS (
                 SELECT m.cd_mun, m.nm_mun
@@ -39,21 +43,37 @@ final class StateRankingQuery
                 ) AS posicao,
                 cd_mun, nm_mun, populacao, area_km2, densidade_hab_km2
                 FROM metrics
+            ), total AS (
+                SELECT COUNT(*) AS total FROM eligible
+            ), page AS (
+                SELECT posicao, cd_mun, nm_mun, populacao, area_km2, densidade_hab_km2
+                FROM ranked
+                ORDER BY posicao
+                LIMIT ? OFFSET ?
             )
-            SELECT posicao, cd_mun, nm_mun, populacao, area_km2, densidade_hab_km2
-            FROM ranked
-            ORDER BY CASE WHEN densidade_hab_km2 IS NULL THEN 1 ELSE 0 END,
-                     densidade_hab_km2 DESC,
-                     cd_mun ASC
-            SQL, [$code]);
+            SELECT total.total, page.posicao, page.cd_mun, page.nm_mun,
+                   page.populacao, page.area_km2, page.densidade_hab_km2
+            FROM total
+            LEFT JOIN page ON 1 = 1
+            ORDER BY page.posicao
+            SQL, [$code, $perPage, $offset]);
 
-        return array_map(static fn (object $row): array => [
-            'posicao' => (int) $row->posicao,
-            'cd_mun' => (string) $row->cd_mun,
-            'nm_mun' => (string) $row->nm_mun,
-            'populacao' => $row->populacao === null ? null : (int) $row->populacao,
-            'area_km2' => $row->area_km2 === null ? null : (float) $row->area_km2,
-            'densidade_hab_km2' => $row->densidade_hab_km2 === null ? null : (float) $row->densidade_hab_km2,
-        ], $rows);
+        $items = [];
+        foreach ($rows as $row) {
+            if ($row->cd_mun === null) {
+                continue;
+            }
+
+            $items[] = [
+                'posicao' => (int) $row->posicao,
+                'cd_mun' => (string) $row->cd_mun,
+                'nm_mun' => (string) $row->nm_mun,
+                'populacao' => $row->populacao === null ? null : (int) $row->populacao,
+                'area_km2' => $row->area_km2 === null ? null : (float) $row->area_km2,
+                'densidade_hab_km2' => $row->densidade_hab_km2 === null ? null : (float) $row->densidade_hab_km2,
+            ];
+        }
+
+        return ['total' => (int) $rows[0]->total, 'items' => $items];
     }
 }

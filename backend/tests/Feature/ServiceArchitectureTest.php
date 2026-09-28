@@ -4,6 +4,7 @@ use App\Services\DemographicMetricsService;
 use App\Services\MunicipalCensusService;
 use App\Services\SectorMetricsService;
 use App\Services\StateCensusService;
+use App\Services\StateRankingService;
 
 arch('census composition services depend only on concrete queries and metric services')
     ->expect([MunicipalCensusService::class, StateCensusService::class])
