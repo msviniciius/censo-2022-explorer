@@ -119,8 +119,8 @@ describe('MunicipalityView.vue', () => {
     // População formatada pt-BR
     expect(wrapper.text()).toContain('21.494 hab')
 
-    // Área formatada pt-BR com 4 casas
-    expect(wrapper.text()).toContain('7.067,1268 km²')
+    // Área formatada pt-BR com 2 casas
+    expect(wrapper.text()).toContain('7.067,13 km²')
 
     // Densidade
     expect(wrapper.text()).toContain('3,04 hab/km²')
@@ -131,21 +131,21 @@ describe('MunicipalityView.vue', () => {
     // Setores urbano / rural / unclassified
     expect(wrapper.text()).toContain('Urbano')
     expect(wrapper.text()).toContain('26 setores')
-    expect(wrapper.text()).toContain('30,59%')
+    expect(wrapper.text()).toContain('30,6%')
     expect(wrapper.text()).toContain('Rural')
     expect(wrapper.text()).toContain('59 setores')
-    expect(wrapper.text()).toContain('69,41%')
+    expect(wrapper.text()).toContain('69,4%')
     expect(wrapper.text()).toContain('Não informada')
     expect(wrapper.text()).toContain('0 setores')
-    expect(wrapper.text()).toContain('0,00%')
+    expect(wrapper.text()).toContain('0,0%')
 
     // Sexo
     expect(wrapper.text()).toContain('Homens')
     expect(wrapper.text()).toContain('10.744 residentes')
-    expect(wrapper.text()).toContain('50,33%')
+    expect(wrapper.text()).toContain('50,3%')
     expect(wrapper.text()).toContain('Mulheres')
     expect(wrapper.text()).toContain('10.601 residentes')
-    expect(wrapper.text()).toContain('49,67%')
+    expect(wrapper.text()).toContain('49,7%')
   })
 
   it('exibe alerta e badge de cobertura parcial', async () => {
@@ -216,10 +216,10 @@ describe('MunicipalityView.vue', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('INDISPONIVEL')
-    expect(wrapper.text()).toContain('Atenção: Dados demográficos indisponíveis para este município.')
+    expect(wrapper.text()).toContain('Atenção: Dados demográficos não disponíveis para este território.')
   })
 
-  it('converte null para Indisponível sem unidades espúrias', async () => {
+  it('converte null para "Não disponível" sem unidades espúrias', async () => {
     const router = createTestRouter()
     const mockDetails = {
       data: {
@@ -251,19 +251,19 @@ describe('MunicipalityView.vue', () => {
     await flushPromises()
 
     const text = wrapper.text()
-    expect(text).toContain('PopulaçãoIndisponível')
-    expect(text).not.toContain('Indisponível hab')
+    expect(text).toContain('PopulaçãoNão disponível')
+    expect(text).not.toContain('Não disponível hab')
 
-    expect(text).toContain('ÁreaIndisponível')
-    expect(text).not.toContain('Indisponível km²')
+    expect(text).toContain('ÁreaNão disponível')
+    expect(text).not.toContain('Não disponível km²')
 
-    expect(text).toContain('DensidadeIndisponível')
-    expect(text).not.toContain('Indisponível hab/km²')
+    expect(text).toContain('DensidadeNão disponível')
+    expect(text).not.toContain('Não disponível hab/km²')
 
-    expect(text).not.toContain('Indisponível residentes')
+    expect(text).not.toContain('Não disponível residentes')
   })
 
-  it('zero continua zero e não se torna Indisponível', async () => {
+  it('zero continua zero e não se torna "Não disponível"', async () => {
     const router = createTestRouter()
     const mockDetails = {
       data: {
@@ -296,11 +296,11 @@ describe('MunicipalityView.vue', () => {
 
     const text = wrapper.text()
     expect(text).toContain('0 hab')
-    expect(text).toContain('0,0000 km²')
+    expect(text).toContain('0,00 km²')
     expect(text).toContain('0,00 hab/km²')
     expect(text).toContain('Total de Setores: 0')
     expect(text).toContain('0 residentes')
-    expect(text).toContain('0,00%')
+    expect(text).toContain('0,0%')
   })
 
   it('cd_mun e cd_uf permanecem strings preservando zeros à esquerda', async () => {

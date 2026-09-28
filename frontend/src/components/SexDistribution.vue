@@ -6,20 +6,19 @@
         <div class="flex flex-col">
           <span class="text-sm font-medium text-slate-700">{{ item.label }}</span>
           <span v-if="item.metric.valor !== null" class="text-xs text-slate-500">{{ formatInt(item.metric.valor) }} residentes</span>
-          <span v-else class="text-xs text-slate-500">Indisponível</span>
         </div>
         <div class="text-right">
           <span class="text-lg font-semibold text-slate-900">{{ formatPercent(item.metric.percentual) }}</span>
         </div>
       </div>
     </div>
-    
+
     <div class="mt-4 pt-4 border-t border-slate-100">
       <div v-if="hasPartial" class="text-xs text-amber-700 bg-amber-50 p-2 rounded">
         Atenção: A cobertura demográfica é parcial para homens ou mulheres.
       </div>
       <div v-else-if="hasUnavailable" class="text-xs text-red-700 bg-red-50 p-2 rounded">
-        Atenção: Dados demográficos indisponíveis para este município.
+        Atenção: Dados demográficos não disponíveis para este território.
       </div>
     </div>
   </div>

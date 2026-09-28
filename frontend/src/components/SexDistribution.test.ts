@@ -29,7 +29,7 @@ describe('SexDistribution.vue', () => {
 
     expect(wrapper.text()).toContain('Homens')
     expect(wrapper.text()).toContain('1.000 residentes')
-    expect(wrapper.text()).toContain('50,00%')
+    expect(wrapper.text()).toContain('50,0%')
     expect(wrapper.find('.text-amber-700').exists()).toBe(false)
     expect(wrapper.find('.text-red-700').exists()).toBe(false)
   })
@@ -55,10 +55,10 @@ describe('SexDistribution.vue', () => {
     })
 
     expect(wrapper.find('.text-red-700').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Atenção: Dados demográficos indisponíveis para este município.')
+    expect(wrapper.text()).toContain('Atenção: Dados demográficos não disponíveis para este território.')
   })
 
-  it('renders Indisponível for null values and never produces Indisponível residentes', () => {
+  it('renders "Não disponível" for null values without attaching a unit', () => {
     const wrapper = mount(SexDistribution, {
       props: {
         homens: { valor: null, percentual: null, setores_com_valor: 0, total_setores: 10, estado: 'indisponivel' as const },
@@ -66,8 +66,8 @@ describe('SexDistribution.vue', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Indisponível')
-    expect(wrapper.text()).not.toContain('Indisponível residentes')
+    expect(wrapper.text()).toContain('Não disponível')
+    expect(wrapper.text()).not.toContain('Não disponível residentes')
   })
 
   it('renders 0 residentes when known value is 0 and preserves zero', () => {
@@ -79,6 +79,6 @@ describe('SexDistribution.vue', () => {
     })
 
     expect(wrapper.text()).toContain('0 residentes')
-    expect(wrapper.text()).not.toContain('Indisponível residentes')
+    expect(wrapper.text()).not.toContain('Não disponível residentes')
   })
 })

@@ -21,18 +21,18 @@ describe('SectorDistribution.vue', () => {
     const text = wrapper.text()
     expect(text).toContain('Urbano')
     expect(text).toContain('26 setores')
-    expect(text).toContain('30,59%')
+    expect(text).toContain('30,6%')
     
     expect(text).toContain('Rural')
     expect(text).toContain('59 setores')
-    expect(text).toContain('69,41%')
+    expect(text).toContain('69,4%')
     
     expect(text).toContain('Não informada')
     expect(text).toContain('0 setores')
-    expect(text).toContain('0,00%')
+    expect(text).toContain('0,0%')
   })
 
-  it('renders Indisponível when percentages are null', () => {
+  it('renders "Não disponível" when percentages are null', () => {
     const wrapper = mount(SectorDistribution, {
       props: { 
         distribution: {
@@ -44,6 +44,6 @@ describe('SectorDistribution.vue', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Indisponível')
+    expect(wrapper.text()).toContain('Não disponível')
   })
 })
