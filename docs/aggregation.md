@@ -112,8 +112,9 @@ métricas; [contrato HTTP e exemplos](municipal-api.md). O Service municipal ret
 `null` também para identidade com nome vazio após trim, antes de agregar; a rota
 exige sete dígitos ASCII. A Query de identidade continua independente de setores.
 A Query de autocomplete aplica sua própria elegibilidade. O agregado estadual
-continua incluindo `.`; endpoints estaduais, ranking e telas de consulta seguem
-pendentes.
+continua incluindo `.`; a task 4.1 expõe esse DTO em `GET /api/ufs/{cd_uf}` e
+lista as UFs em `GET /api/ufs`, conforme o [contrato HTTP estadual](state-api.md).
+Ranking e interface estadual seguem pendentes.
 
 ## Particularidades confirmadas do snapshot
 

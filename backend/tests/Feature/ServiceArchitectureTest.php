@@ -42,3 +42,7 @@ arch('controllers cannot bypass services to access census data')
 arch('queries do not depend on HTTP or services')
     ->expect('App\Queries')
     ->not->toUse(['App\Http', 'App\Services', 'Illuminate\Http', 'Illuminate\Support\Facades\Response']);
+
+arch('state list service delegates only to its concrete query')
+    ->expect(App\Services\StateListService::class)
+    ->toOnlyUse([App\Queries\StateListQuery::class]);
