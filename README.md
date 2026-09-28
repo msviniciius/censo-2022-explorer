@@ -161,3 +161,41 @@ A distribuição por sexo refere-se aos **valores conhecidos**: os percentuais u
 a soma de homens mais a soma de mulheres. Essa soma pode diferir da população
 territorial e não elimina o aviso de parcialidade. Não há preenchimento de lacunas
 com zero nem estimativa de dados faltantes.
+
+
+## Decisões técnicas e motivos
+
+- **SQLite imutável e somente leitura:** o arquivo fornecido é a fonte de
+  verdade. Montagem e conexão somente leitura protegem o snapshot; storage e cache
+  separados evitam que o Laravel escreva nele.
+- **Controller → Service → Query → SQLite:** separar HTTP, composição e SQL
+  permite testar cada responsabilidade. Queries específicas dispensam um
+  Repository genérico e mantêm as consultas explícitas.
+- **Agregação e paginação no banco:** somar setores e ordenar o ranking antes
+  de paginar evita carregar o dataset em PHP ou no navegador e evita consultas
+  por município. O desempate por código torna a ordenação determinística.
+- **Ausência de dados explícita:** cobertura por campo, percentuais sobre valores
+  conhecidos e categoria Não informada preservam a interpretação dos dados.
+  Os setores do município `.` continuam nos totais estaduais, embora o registro
+  não seja selecionável nem elegível ao ranking.
+- **Vue com TypeScript e estado local:** duas telas não exigem store global.
+  Recursos independentes permitem retry pontual; a identificação de requisições
+  impede que respostas antigas substituam a seleção atual.
+- **Compose e builds reproduzíveis:** imagens fixadas, lockfiles e preparação
+  automática reduzem diferenças de ambiente. Nginx serve a SPA e a API na mesma
+  origem, com PHP-FPM na rede interna.
+- **Fixtures e SQL independente:** fixtures temporárias cobrem casos extremos;
+  auditorias no snapshot real verificam resultados sem usar as Queries da
+  aplicação como referência esperada.
+
+## O que faria diferente com mais tempo
+
+- Consolidaria as verificações em CI, com testes rápidos a cada alteração e
+  auditorias do dataset e fluxos de navegador em uma etapa de integração.
+- Ampliaria a revisão de acessibilidade com leitores de tela e navegadores
+  diferentes, além dos testes de teclado e componentes.
+- Repetiria medições de latência em hardware documentado, com cache frio/quente
+  e acessos simultâneos, para caracterizar os limites da solução. Qualquer
+  otimização dependeria de gargalo demonstrado e preservaria o banco fonte.
+
+Esses pontos são melhorias futuras, não funcionalidades adicionais desta versão.
