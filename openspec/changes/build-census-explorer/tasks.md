@@ -4,14 +4,6 @@ Plano de implementação e verificação incremental. Executar os grupos na orde
 
 Rastreabilidade dos critérios de aceite:
 
-
-
-
-
-
-
-
-
 | Capacidade / decisão                                              | Implementação e verificação                            |
 | ------------------------------------------------------------------ | ---------------------------------------------------------- |
 | census-aggregation — fonte, fórmulas, cobertura e distribuição | 2.1–2.5; apresentação em 3.3; integração em 6.1 e 6.3 |
@@ -46,8 +38,8 @@ Rastreabilidade dos critérios de aceite:
 
 - [X] 4.1 Expor lista de UFs e detalhes estaduais pelo fluxo de camadas definido; verificar lista ordenada, Distrito Federal, UF inexistente/malformada, contrato dos agregados e aviso de setores não identificáveis; documentar os endpoints.
 - [X] 4.2 Implementar Query de ranking agregado por UF antes da paginação e seu Service/Controller; verificar densidade decrescente sem arredondamento, empates por código, nulos no final, municípios sem setores, exclusão de registros inválidos e isolamento entre UFs.
-- [ ] 4.3 Implementar validação e metadados da paginação; verificar padrões `page=1`/`per_page=25`, opções exclusivas 25/50/100, rejeição de tamanhos fora dessas opções e parâmetros não inteiros, negativos e zero, página além da última, lista vazia, fixture de 55 municípios em três páginas de tamanho 25 sem repetição/omissão e Minas Gerais com 853 registros em 35 páginas; documentar exemplos de resposta e erro.
-- [ ] 4.4 Implementar seleção de UF, agregados e tabela de ranking com posição, população, área e densidade, usando componentes compartilhados; verificar controles anterior/próxima, seletor 25/50/100 com padrão 25, retorno à página 1 e consulta server-side ao trocar tamanho, indicação de total/página, formatação e usabilidade por teclado e em tela estreita.
+- [X] 4.3 Implementar validação e metadados da paginação; verificar padrões `page=1`/`per_page=25`, opções exclusivas 25/50/100, rejeição de tamanhos fora dessas opções e parâmetros não inteiros, negativos e zero, página além da última, lista vazia, fixture de 55 municípios em três páginas de tamanho 25 sem repetição/omissão e Minas Gerais com 853 registros em 35 páginas; documentar exemplos de resposta e erro.
+- [X] 4.4 Implementar seleção de UF, agregados e tabela de ranking com posição, população, área e densidade, usando componentes compartilhados; verificar controles anterior/próxima, seletor 25/50/100 com padrão 25, retorno à página 1 e consulta server-side ao trocar tamanho, indicação de total/página, formatação e usabilidade por teclado e em tela estreita.
 - [ ] 4.5 Implementar estados independentes e retry para UFs, agregados e ranking; verificar troca de UF durante requisição, retorno à página 1, descarte de respostas anteriores e preservação dos agregados quando somente o ranking falhar; documentar o fluxo estadual e a diferença entre totais estaduais e municípios elegíveis ao ranking.
 
 ## 5. Inicialização automática e prontidão da entrega
