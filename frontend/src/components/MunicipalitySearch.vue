@@ -6,6 +6,7 @@
       type="text"
       role="combobox"
       :aria-expanded="isOpen"
+      :aria-busy="state === 'loading'"
       aria-haspopup="listbox"
       :aria-controls="listboxId"
       aria-autocomplete="list"
@@ -40,15 +41,28 @@
       </ul>
     </div>
 
-    <div v-else-if="shouldShowEmpty" class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg p-4 text-sm text-slate-500">
+    <div v-else-if="state === 'empty'" role="status" class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg p-4 text-sm text-slate-500">
       Nenhum município encontrado.
+    </div>
+    <p v-if="state === 'initial' && query.trim().length < 2" class="mt-2 text-sm text-slate-600">
+      Digite pelo menos dois caracteres para buscar.
+    </p>
+    <p v-else-if="state === 'debouncing' || state === 'loading'" role="status" class="mt-2 text-sm text-slate-600">
+      {{ state === 'debouncing' ? 'Aguardando digitação...' : 'Buscando municípios...' }}
+    </p>
+    <div v-else-if="state === 'error' && failedSearch" role="alert" class="mt-2 text-sm text-red-800">
+      <p>{{ failedSearch.message }}</p>
+      <button v-if="failedSearch.retryable" type="button" @click="retrySearch"
+        class="mt-2 rounded border border-red-300 px-3 py-2 font-medium focus-visible:outline-2 focus-visible:outline-offset-2">
+        Tentar buscar novamente
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { censusApi } from '../api/census'
+import { censusApi, CensusHttpError } from '../api/census'
 import type { Municipality } from '../api/types'
 
 const emit = defineEmits<{
@@ -61,19 +75,14 @@ const listboxId = 'municipality-search-results'
 
 const query = ref('')
 const results = ref<Municipality[]>([])
-const loading = ref(false)
+const state = ref<'initial' | 'debouncing' | 'loading' | 'success' | 'empty' | 'error'>('initial')
+const failedSearch = ref<{ term: string; message: string; retryable: boolean } | null>(null)
 const activeIndex = ref(-1)
-const hasInteracted = ref(false)
-const isSelected = ref(false)
 
 const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 let latestSearchId = 0
 
 const isOpen = computed(() => results.value.length > 0)
-const shouldShowEmpty = computed(() => {
-  return !isSelected.value && hasInteracted.value && query.value.trim().length >= 2 && !loading.value && results.value.length === 0
-})
-
 const activeOptionId = computed(() => {
   if (activeIndex.value >= 0 && results.value.length > 0) {
     return getOptionId(activeIndex.value)
@@ -93,43 +102,53 @@ function clearDebounce() {
 }
 
 async function performSearch(searchTerm: string, searchId: number) {
-  loading.value = true
+  state.value = 'loading'
+  failedSearch.value = null
   try {
     const response = await censusApi.search(searchTerm)
     if (searchId !== latestSearchId) return
 
     results.value = response.data
     activeIndex.value = results.value.length > 0 ? 0 : -1
+    state.value = results.value.length > 0 ? 'success' : 'empty'
   } catch (err) {
     if (searchId !== latestSearchId) return
-    console.error(err)
     results.value = []
     activeIndex.value = -1
-  } finally {
-    if (searchId === latestSearchId) {
-      loading.value = false
+    failedSearch.value = {
+      term: searchTerm,
+      message: err instanceof CensusHttpError && err.status === 422
+        ? 'Busca inválida. Edite o texto e use no máximo 100 caracteres.'
+        : 'Não foi possível buscar municípios. Tente novamente ou edite a busca.',
+      retryable: !(err instanceof CensusHttpError) || err.status >= 500,
     }
+    state.value = 'error'
   }
+}
+
+function retrySearch() {
+  const failure = failedSearch.value
+  if (state.value !== 'error' || !failure?.retryable || query.value.trim() !== failure.term) return
+  clearDebounce()
+  performSearch(failure.term, ++latestSearchId)
 }
 
 function onInput() {
   emit('edit')
-  hasInteracted.value = true
-  isSelected.value = false
   clearDebounce()
   latestSearchId++
   results.value = []
   activeIndex.value = -1
-  loading.value = false
+  failedSearch.value = null
+  state.value = 'initial'
 
   const trimmed = query.value.trim()
-  if (trimmed.length < 2) {
-    return
-  }
+  if (trimmed.length < 2) return
 
+  state.value = 'debouncing'
   debounceTimer.value = setTimeout(() => {
-    const searchId = ++latestSearchId
-    performSearch(trimmed, searchId)
+    debounceTimer.value = null
+    performSearch(trimmed, ++latestSearchId)
   }, 300)
 }
 
@@ -139,9 +158,8 @@ function onKeyDown(e: KeyboardEvent) {
     latestSearchId++
     results.value = []
     activeIndex.value = -1
-    loading.value = false
-    isSelected.value = false
-    hasInteracted.value = false
+    state.value = 'initial'
+    failedSearch.value = null
     return
   }
 
@@ -168,8 +186,8 @@ function onKeyDown(e: KeyboardEvent) {
 function select(mun: Municipality) {
   clearDebounce()
   latestSearchId++
-  loading.value = false
-  isSelected.value = true
+  state.value = 'initial'
+  failedSearch.value = null
   query.value = mun.nm_mun
   results.value = []
   activeIndex.value = -1

@@ -5,9 +5,20 @@
 
       <MunicipalitySearch @select="onSelect" @edit="onEdit" />
 
-      <div v-if="loading" class="mt-12 text-center text-slate-600">
+      <div v-if="state === 'loading'" role="status" class="mt-12 text-center text-slate-600">
         Carregando detalhes...
       </div>
+
+      <div v-else-if="state === 'error' && failedDetails" role="alert" class="mt-8 text-red-800">
+        <p>{{ failedDetails.message }}</p>
+        <button v-if="failedDetails.retryable" type="button" @click="retryDetails"
+          class="mt-2 rounded border border-red-300 px-3 py-2 font-medium focus-visible:outline-2 focus-visible:outline-offset-2">
+          Tentar carregar detalhes novamente
+        </button>
+      </div>
+      <p v-else-if="state === 'initial'" class="mt-8 text-slate-600">
+        Busque um município e selecione uma sugestão para consultar os dados.
+      </p>
 
       <div v-else-if="details" class="mt-12 space-y-8">
         <header>
@@ -60,7 +71,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { censusApi } from '../api/census'
+import { censusApi, CensusHttpError } from '../api/census'
 import type { Municipality, MunicipalityDetails } from '../api/types'
 import { formatInt, formatArea, formatDensity } from '../utils/formatters'
 import MunicipalitySearch from '../components/MunicipalitySearch.vue'
@@ -73,28 +84,43 @@ const route = useRoute()
 const router = useRouter()
 
 const details = ref<MunicipalityDetails | null>(null)
-const loading = ref(false)
+const state = ref<'initial' | 'loading' | 'success' | 'error'>('initial')
+const failedDetails = ref<{ code: string; message: string; retryable: boolean } | null>(null)
+let activeCode: string | null = null
 let latestRequestId = 0
 
 async function loadMunicipality(code: string) {
+  if (state.value === 'loading' && activeCode === code) return
   const requestId = ++latestRequestId
-  loading.value = true
+  activeCode = code
+  state.value = 'loading'
+  failedDetails.value = null
   details.value = null
   try {
     const response = await censusApi.getDetails(code)
-    // Stale response protection
     if (requestId !== latestRequestId) return
 
     details.value = response.data
+    state.value = 'success'
   } catch (err) {
     if (requestId !== latestRequestId) return
-    console.error(err)
-    details.value = null
-  } finally {
-    if (requestId === latestRequestId) {
-      loading.value = false
+    failedDetails.value = {
+      code,
+      message: err instanceof CensusHttpError && err.status === 404
+        ? 'Município não encontrado. Faça uma nova busca.'
+        : err instanceof CensusHttpError && err.status >= 400 && err.status < 500
+          ? 'Não foi possível consultar este município. Faça uma nova busca.'
+          : 'Não foi possível carregar os detalhes do município. Tente novamente.',
+      retryable: !(err instanceof CensusHttpError) || err.status >= 500,
     }
+    state.value = 'error'
   }
+}
+
+function retryDetails() {
+  const failure = failedDetails.value
+  if (state.value !== 'error' || !failure?.retryable || route.query.cd !== failure.code) return
+  loadMunicipality(failure.code)
 }
 
 function onSelect(mun: Municipality) {
@@ -108,7 +134,9 @@ function onSelect(mun: Municipality) {
 function onEdit() {
   // Clear selection and URL on edit
   details.value = null
-  loading.value = false
+  state.value = 'initial'
+  failedDetails.value = null
+  activeCode = null
   latestRequestId++ // Invalidate any pending details request
   if (route.query.cd) {
     router.replace({ name: 'municipios', query: {} }).catch(() => {})
@@ -120,7 +148,13 @@ watch(() => route.query.cd, (newCd) => {
     loadMunicipality(newCd)
   } else {
     details.value = null
-    loading.value = false
+    state.value = 'initial'
+    failedDetails.value = null
+    activeCode = null
+    if (newCd !== undefined) {
+      state.value = 'error'
+      failedDetails.value = { code: '', message: 'Município não encontrado. Faça uma nova busca.', retryable: false }
+    }
     latestRequestId++
   }
 }, { immediate: true })

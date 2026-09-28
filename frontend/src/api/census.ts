@@ -1,5 +1,12 @@
 import type { DetailsResponse, SearchResponse } from './types'
 
+export class CensusHttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'CensusHttpError'
+  }
+}
+
 export const censusApi = {
   async search(query: string): Promise<SearchResponse> {
     const params = new URLSearchParams({ q: query })
@@ -7,10 +14,7 @@ export const censusApi = {
       headers: { Accept: 'application/json' },
     })
     if (!response.ok) {
-      if (response.status === 422) {
-        return { data: [] }
-      }
-      throw new Error('Erro ao buscar municípios')
+      throw new CensusHttpError(response.status, 'Erro ao buscar municípios')
     }
     return response.json()
   },
@@ -20,7 +24,7 @@ export const censusApi = {
       headers: { Accept: 'application/json' },
     })
     if (!response.ok) {
-      throw new Error('Erro ao carregar detalhes do município')
+      throw new CensusHttpError(response.status, 'Erro ao carregar detalhes do município')
     }
     return response.json()
   },

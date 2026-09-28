@@ -2,8 +2,7 @@
 
 Census Explorer com bootstrap executável e camada interna de agregação municipal
 e estadual. A API expõe prontidão, busca e detalhes municipais. A interface
-contém uma página inicial Vue; telas de consulta, endpoints estaduais e ranking
-ainda não foram implementados.
+municipal permite buscar, selecionar e consultar os dados de um município.
 
 ## Executar
 
@@ -16,8 +15,8 @@ Na raiz da cópia completa do projeto:
 docker compose up --build
 ```
 
-Abra http://localhost:8080. O frontend chama GET /api/health na mesma origem.
-O endpoint retorna 200 quando consegue ler as tabelas/colunas censitárias
+Abra http://localhost:8080; a aplicação abre a consulta municipal.
+GET /api/health retorna 200 quando consegue ler as tabelas/colunas censitárias
 necessárias e 503 quando a base está indisponível. URLs desconhecidas em /api
 retornam JSON 404; as demais URLs têm fallback da SPA.
 
@@ -94,4 +93,45 @@ divergência faz o teste falhar com território/campo e valores comparados.
 A task 3.2 expõe `GET /api/municipios?q=<texto>` e
 `GET /api/municipios/{cd_mun}`. Contratos, exemplos, validação e comandos de
 smoke test estão em [docs/municipal-api.md](docs/municipal-api.md).
-A interface municipal permanece para as próximas tasks.
+
+## Fluxo municipal e recuperação
+
+Em `/municipios`, digite pelo menos dois caracteres do nome. A busca aguarda
+300 ms após a última edição, ignora acentos/caixa e mostra o nome da UF para
+distinguir homônimos. Selecione uma sugestão com clique ou setas e Enter;
+Escape fecha/cancela a interação corrente. A seleção carrega os detalhes.
+Editar o texto limpa a seleção e os dados anteriores.
+
+A busca distingue espera pela digitação, carregamento, resultados, ausência de
+resultados e erro. “Nenhum município encontrado” significa resposta bem-sucedida
+sem correspondências. Falhas de rede/servidor oferecem **Tentar buscar novamente**,
+repetindo o termo que falhou; entrada inválida orienta editar o texto.
+
+Os detalhes têm carregamento e erro próprios. **Tentar carregar detalhes novamente**
+repete a consulta do município selecionado, sem repetir o autocomplete. Os botões
+são acessíveis por teclado e não iniciam solicitações duplicadas durante o
+carregamento. Município não encontrado orienta uma nova busca. Editar ou selecionar
+outro município invalida os resultados pendentes, inclusive os de retries.
+
+A seleção fica na URL: `/municipios?cd=1100015` abre diretamente Alta Floresta
+D'Oeste, em Rondônia. Recarregar ou compartilhar esse endereço mantém a consulta;
+`/municipios` sem código abre o estado inicial. Para conferir no navegador após
+`docker compose up --build -d --wait`, abra a rota inicial, busque e selecione
+esse município, confira os detalhes e recarregue a URL com `?cd=1100015`.
+
+## Interpretar métricas e cobertura
+
+População, área e densidade são métricas territoriais. A distribuição urbana,
+rural e **Não informada** conta setores, não residentes. Situação ausente ou
+não reconhecida permanece em Não informada.
+
+Homens e mulheres mostram a soma dos valores conhecidos, com cobertura separada:
+**completo** indica todos os setores com valor; **parcial**, somente parte deles;
+**indisponível**, ausência de valores conhecidos. “67 de 85 setores” descreve a
+cobertura setorial, não a porcentagem de pessoas recenseadas. Um zero conhecido
+permanece zero; valor ausente aparece como Indisponível.
+
+A distribuição por sexo refere-se aos **valores conhecidos**: os percentuais usam
+a soma de homens mais a soma de mulheres. Essa soma pode diferir da população
+territorial e não elimina o aviso de parcialidade. Não há preenchimento de lacunas
+com zero nem estimativa de dados faltantes.
