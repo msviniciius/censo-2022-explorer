@@ -1,8 +1,9 @@
 # censo-2022-explorer
 
 Census Explorer com bootstrap executável e camada interna de agregação municipal
-e estadual. A API expõe prontidão, busca e detalhes municipais. A interface
-municipal permite buscar, selecionar e consultar os dados de um município.
+e estadual. A API expõe prontidão, consultas municipais e consultas estaduais.
+A interface permite consultar um município ou selecionar uma UF e percorrer seu
+ranking municipal paginado.
 
 ## Executar
 
@@ -42,9 +43,8 @@ app executa PHP 8.4-FPM; web serve os assets com Nginx e encaminha /api ao Larav
 Somente web publica uma porta. As imagens base estão fixadas por digest e as
 dependências por lockfiles.
 
-O healthcheck e os endpoints municipais seguem Controller → Service → Query →
-SQLite. A agregação estadual permanece interna, sem endpoint HTTP. Não há
-Repository ou Organizer.
+O healthcheck e os endpoints municipais e estaduais seguem Controller → Service
+→ Query → SQLite. Não há Repository ou Organizer.
 
 ## Verificações do bootstrap
 
@@ -118,6 +118,32 @@ D'Oeste, em Rondônia. Recarregar ou compartilhar esse endereço mantém a consu
 `/municipios` sem código abre o estado inicial. Para conferir no navegador após
 `docker compose up --build -d --wait`, abra a rota inicial, busque e selecione
 esse município, confira os detalhes e recarregue a URL com `?cd=1100015`.
+
+## Fluxo estadual e recuperação
+
+Em `/estados`, selecione uma UF para carregar independentemente seus agregados e
+a primeira página do ranking municipal. Nenhuma UF é selecionada por padrão. O
+ranking usa paginação server-side, começa com 25 municípios por página e permite
+25, 50 ou 100. Mudar o tamanho volta à página 1 sem recarregar os agregados.
+
+A lista de UFs, os agregados e o ranking têm estados de carregamento, vazio e
+erro próprios. Falhas recuperáveis de rede ou servidor oferecem uma nova
+tentativa somente para o recurso que falhou. Assim, uma falha do ranking não
+remove agregados já carregados, e o retry do ranking não repete a lista de UFs
+nem os detalhes estaduais.
+
+Trocar ou limpar a UF invalida logicamente detalhes e ranking pendentes. Trocar
+de página ou tamanho também invalida respostas anteriores do ranking; respostas
+que chegam fora de ordem não substituem a UF, página ou tamanho atuais. Durante
+uma paginação, a última página válida permanece visível. Se a nova página falhar,
+o retry repete exatamente a UF, página e tamanho que falharam.
+
+Os agregados estaduais incluem todos os setores vinculados à UF. O ranking
+contém somente municípios elegíveis, com código de sete dígitos e nome não vazio.
+Por isso, os totais estaduais não devem ser reconstruídos somando as linhas do
+ranking. Na UF `43`, os dois setores ligados ao registro municipal `.` entram nos
+totais estaduais e no aviso de setores sem município identificável, mas esse
+registro não aparece no ranking.
 
 ## Interpretar métricas e cobertura
 

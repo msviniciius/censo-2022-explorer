@@ -115,7 +115,8 @@ A Query de autocomplete aplica sua própria elegibilidade. O agregado estadual
 continua incluindo `.`; a task 4.1 expõe esse DTO em `GET /api/ufs/{cd_uf}` e
 lista as UFs em `GET /api/ufs`, conforme o [contrato HTTP estadual](state-api.md).
 O ranking estadual, descrito abaixo, é paginado no SQLite após `ROW_NUMBER()`.
-Interface e recuperação estadual seguem pendentes.
+A interface estadual carrega lista, agregados e ranking de forma independente,
+com retry e descarte de respostas obsoletas conforme o contrato estadual.
 
 ## Particularidades confirmadas do snapshot
 

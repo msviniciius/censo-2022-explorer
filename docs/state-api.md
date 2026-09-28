@@ -1,4 +1,4 @@
-# API estadual — tasks 4.1–4.3
+# API e fluxo estadual — tasks 4.1–4.5
 
 ## Lista de UFs
 
@@ -122,8 +122,35 @@ retorna 200 com `data: []`, a página solicitada em `current_page`, e o total/
 com lista vazia, `total: 0` e `last_page: 1`. UF malformada ou inexistente retorna
 404; indisponibilidade censitária retorna 503; falhas inesperadas retornam 500.
 Erros são JSON genéricos, sem SQL, caminhos ou stack traces. O ranking não altera
-os agregados de `GET /api/ufs/{cd_uf}`. A interface e recuperação estadual
-pertencem às tasks 4.4/4.5.
+os agregados de `GET /api/ufs/{cd_uf}`.
+
+## Fluxo da interface e recuperação
+
+A rota `/estados` carrega a lista de UFs sem selecionar uma opção por padrão. A
+seleção inicia, independentemente, os detalhes da UF e a página 1 do ranking com
+25 itens. Paginar consulta somente o ranking; trocar para 25, 50 ou 100 itens
+reinicia na página 1 e preserva os agregados.
+
+Lista, detalhes e ranking mantêm estados e retries independentes. Falhas de rede
+ou HTTP 5xx oferecem nova tentativa apenas para o recurso afetado. Erros HTTP 4xx
+não repetem automaticamente uma requisição inválida. Uma falha do ranking
+preserva agregados já carregados. Ao paginar com a mesma UF e tamanho, a última
+página válida permanece visível durante o carregamento e caso a nova página
+falhe; o retry usa exatamente a UF, página e tamanho da falha.
+
+Cada recurso usa sua própria sequência de requisições. Respostas de detalhes só
+são aceitas para a UF ainda selecionada. Respostas do ranking também precisam
+corresponder ao tamanho de página atual. Trocar ou limpar a UF, trocar página ou
+tamanho e desmontar a tela invalidam logicamente respostas anteriores, inclusive
+falhas tardias.
+
+Os totais estaduais e o ranking têm abrangências diferentes. Os agregados usam
+todos os setores vinculados à UF, inclusive setores de municípios não
+selecionáveis. O ranking inclui apenas municípios com código de sete dígitos e
+nome não vazio. Na UF `43`, os dois setores do registro `.` entram nos agregados
+e em `setores_sem_municipio_identificavel`, enquanto o registro não integra o
+ranking. Portanto, os totais estaduais não devem ser reconstruídos pela soma das
+linhas do ranking.
 
 Exemplo de erro: `GET /api/ufs/31/municipios?page=0` retorna HTTP 422:
 
