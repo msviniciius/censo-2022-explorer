@@ -1,8 +1,9 @@
 # censo-2022-explorer
 
-Bootstrap técnico do Census Explorer. Nesta etapa há uma página inicial Vue e
-um endpoint de prontidão Laravel; consultas municipais, estaduais e ranking
-ainda não foram implementados.
+Census Explorer com bootstrap executável e camada interna de agregação municipal
+e estadual. A API expõe prontidão, consultas municipais e consultas estaduais.
+A interface permite consultar um município ou selecionar uma UF e percorrer seu
+ranking municipal paginado.
 
 ## Executar
 
@@ -15,8 +16,8 @@ Na raiz da cópia completa do projeto:
 docker compose up --build
 ```
 
-Abra http://localhost:8080. O frontend chama GET /api/health na mesma origem.
-O endpoint retorna 200 quando consegue ler as tabelas/colunas censitárias
+Abra http://localhost:8080; a aplicação abre a consulta municipal.
+GET /api/health retorna 200 quando consegue ler as tabelas/colunas censitárias
 necessárias e 503 quando a base está indisponível. URLs desconhecidas em /api
 retornam JSON 404; as demais URLs têm fallback da SPA.
 
@@ -42,8 +43,8 @@ app executa PHP 8.4-FPM; web serve os assets com Nginx e encaminha /api ao Larav
 Somente web publica uma porta. As imagens base estão fixadas por digest e as
 dependências por lockfiles.
 
-O healthcheck segue Controller → Service → Query → SQLite. As mesmas pastas
-receberão os futuros casos de uso; não há Repository ou Organizer.
+O healthcheck e os endpoints municipais e estaduais seguem Controller → Service
+→ Query → SQLite. Não há Repository ou Organizer.
 
 ## Verificações do bootstrap
 
@@ -67,3 +68,96 @@ etapa futura de E2E.
 Se a inicialização falhar, consulte docker compose logs app web. Arquivo ausente,
 ilegível ou esquema incompatível impedem a prontidão; a aplicação não cria um
 SQLite vazio. A chave fica no volume app-storage e é reutilizada nos reinícios.
+
+## Auditoria da agregação no dataset real
+
+Fórmulas, NULLs, cobertura, contrato interno dos Services, lacunas do dataset e
+resultados estão em [docs/aggregation.md](docs/aggregation.md).
+
+A auditoria compara município `1100015` e UF `43` com SQL independente. Ela é
+separada da suíte normal e monta o banco somente para leitura:
+
+```sh
+sha256sum censo.sqlite
+docker compose --profile audit run --build --rm dataset-audit
+sha256sum censo.sqlite
+```
+
+O comando valida todos os campos do contrato interno e o hash esperado antes e
+depois, incluindo os dois setores do registro `.` nos totais estaduais. Uma
+divergência faz o teste falhar com território/campo e valores comparados.
+
+
+## API municipal
+
+A task 3.2 expõe `GET /api/municipios?q=<texto>` e
+`GET /api/municipios/{cd_mun}`. Contratos, exemplos, validação e comandos de
+smoke test estão em [docs/municipal-api.md](docs/municipal-api.md).
+
+## Fluxo municipal e recuperação
+
+Em `/municipios`, digite pelo menos dois caracteres do nome. A busca aguarda
+300 ms após a última edição, ignora acentos/caixa e mostra o nome da UF para
+distinguir homônimos. Selecione uma sugestão com clique ou setas e Enter;
+Escape fecha/cancela a interação corrente. A seleção carrega os detalhes.
+Editar o texto limpa a seleção e os dados anteriores.
+
+A busca distingue espera pela digitação, carregamento, resultados, ausência de
+resultados e erro. “Nenhum município encontrado” significa resposta bem-sucedida
+sem correspondências. Falhas de rede/servidor oferecem **Tentar buscar novamente**,
+repetindo o termo que falhou; entrada inválida orienta editar o texto.
+
+Os detalhes têm carregamento e erro próprios. **Tentar carregar detalhes novamente**
+repete a consulta do município selecionado, sem repetir o autocomplete. Os botões
+são acessíveis por teclado e não iniciam solicitações duplicadas durante o
+carregamento. Município não encontrado orienta uma nova busca. Editar ou selecionar
+outro município invalida os resultados pendentes, inclusive os de retries.
+
+A seleção fica na URL: `/municipios?cd=1100015` abre diretamente Alta Floresta
+D'Oeste, em Rondônia. Recarregar ou compartilhar esse endereço mantém a consulta;
+`/municipios` sem código abre o estado inicial. Para conferir no navegador após
+`docker compose up --build -d --wait`, abra a rota inicial, busque e selecione
+esse município, confira os detalhes e recarregue a URL com `?cd=1100015`.
+
+## Fluxo estadual e recuperação
+
+Em `/estados`, selecione uma UF para carregar independentemente seus agregados e
+a primeira página do ranking municipal. Nenhuma UF é selecionada por padrão. O
+ranking usa paginação server-side, começa com 25 municípios por página e permite
+25, 50 ou 100. Mudar o tamanho volta à página 1 sem recarregar os agregados.
+
+A lista de UFs, os agregados e o ranking têm estados de carregamento, vazio e
+erro próprios. Falhas recuperáveis de rede ou servidor oferecem uma nova
+tentativa somente para o recurso que falhou. Assim, uma falha do ranking não
+remove agregados já carregados, e o retry do ranking não repete a lista de UFs
+nem os detalhes estaduais.
+
+Trocar ou limpar a UF invalida logicamente detalhes e ranking pendentes. Trocar
+de página ou tamanho também invalida respostas anteriores do ranking; respostas
+que chegam fora de ordem não substituem a UF, página ou tamanho atuais. Durante
+uma paginação, a última página válida permanece visível. Se a nova página falhar,
+o retry repete exatamente a UF, página e tamanho que falharam.
+
+Os agregados estaduais incluem todos os setores vinculados à UF. O ranking
+contém somente municípios elegíveis, com código de sete dígitos e nome não vazio.
+Por isso, os totais estaduais não devem ser reconstruídos somando as linhas do
+ranking. Na UF `43`, os dois setores ligados ao registro municipal `.` entram nos
+totais estaduais e no aviso de setores sem município identificável, mas esse
+registro não aparece no ranking.
+
+## Interpretar métricas e cobertura
+
+População, área e densidade são métricas territoriais. A distribuição urbana,
+rural e **Não informada** conta setores, não residentes. Situação ausente ou
+não reconhecida permanece em Não informada.
+
+Homens e mulheres mostram a soma dos valores conhecidos, com cobertura separada:
+**completo** indica todos os setores com valor; **parcial**, somente parte deles;
+**indisponível**, ausência de valores conhecidos. “67 de 85 setores” descreve a
+cobertura setorial, não a porcentagem de pessoas recenseadas. Um zero conhecido
+permanece zero; valor ausente aparece como Indisponível.
+
+A distribuição por sexo refere-se aos **valores conhecidos**: os percentuais usam
+a soma de homens mais a soma de mulheres. Essa soma pode diferir da população
+territorial e não elimina o aviso de parcialidade. Não há preenchimento de lacunas
+com zero nem estimativa de dados faltantes.

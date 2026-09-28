@@ -50,6 +50,23 @@ services:
       dockerfile: docker/Dockerfile
       target: backend-test
 
+  dataset-audit:
+    profiles: ["audit"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: backend-test
+    environment:
+      CENSUS_AUDIT_DATABASE: /data/censo.sqlite
+    volumes:
+      - type: bind
+        source: ./censo.sqlite
+        target: /data/censo.sqlite
+        read_only: true
+        bind:
+          create_host_path: false
+    command: ["php", "vendor/bin/pest", "--configuration", "phpunit.dataset.xml"]
+
   frontend-test:
     profiles: ["test"]
     build:
